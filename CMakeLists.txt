@@ -1,260 +1,220 @@
-cmake_minimum_required(VERSION 3.16)
-project(LaTeX)
+cmake_minimum_required(VERSION 3.24)
+project(MicroTeX LANGUAGES CXX)
 
-add_library(LaTeX "")
+find_package(tinyxml2 REQUIRED)
 
-# MSVC Compat
+# TODO MSVC /utf-8 flag?
 
-if (MSVC)
-    set(CMAKE_CXX_STANDARD 17)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
-    add_compile_options("/utf-8")
-    target_compile_features(LaTeX PUBLIC cxx_std_17)
-else ()
+add_library(Core
+	# atom folder
+	src/atom/atom_basic.cpp
+	src/atom/atom_char.cpp
+	src/atom/atom_impl.cpp
+	src/atom/atom_matrix.cpp
+	src/atom/atom_row.cpp
+	src/atom/atom_space.cpp
+	src/atom/colors_def.cpp
+	src/atom/unit_conversion.cpp
+	# box folder
+	src/box/box.cpp
+	src/box/box_factory.cpp
+	src/box/box_group.cpp
+	src/box/box_single.cpp
+	# core folder
+	src/core/core.cpp
+	src/core/formula.cpp
+	src/core/formula_def.cpp
+	src/core/glue.cpp
+	src/core/localized_num.cpp
+	src/core/macro.cpp
+	src/core/macro_def.cpp
+	src/core/macro_impl.cpp
+	src/core/parser.cpp
+	# fonts folder
+	src/fonts/alphabet.cpp
+	src/fonts/font_basic.cpp
+	src/fonts/font_info.cpp
+	src/fonts/fonts.cpp
+	# utils folder
+	src/utils/string_utils.cpp
+	src/utils/utf.cpp
+	src/utils/utils.cpp
+	# res folder
+	src/res/builtin/formula_mappings.res.cpp
+	src/res/builtin/symbol_mapping.res.cpp
+	src/res/builtin/tex_param.res.cpp
+	src/res/builtin/tex_symbols.res.cpp
+	src/res/font/bi10.def.cpp
+	src/res/font/bx10.def.cpp
+	src/res/font/cmbsy10.def.cpp
+	src/res/font/cmbx10.def.cpp
+	src/res/font/cmbxti10.def.cpp
+	src/res/font/cmex10.def.cpp
+	src/res/font/cmmi10.def.cpp
+	src/res/font/cmmi10_unchanged.def.cpp
+	src/res/font/cmmib10.def.cpp
+	src/res/font/cmmib10_unchanged.def.cpp
+	src/res/font/cmr10.def.cpp
+	src/res/font/cmss10.def.cpp
+	src/res/font/cmssbx10.def.cpp
+	src/res/font/cmssi10.def.cpp
+	src/res/font/cmsy10.def.cpp
+	src/res/font/cmti10.def.cpp
+	src/res/font/cmti10_unchanged.def.cpp
+	src/res/font/cmtt10.def.cpp
+	src/res/font/dsrom10.def.cpp
+	src/res/font/eufb10.def.cpp
+	src/res/font/eufm10.def.cpp
+	src/res/font/i10.def.cpp
+	src/res/font/moustache.def.cpp
+	src/res/font/msam10.def.cpp
+	src/res/font/msbm10.def.cpp
+	src/res/font/r10.def.cpp
+	src/res/font/r10_unchanged.def.cpp
+	src/res/font/rsfs10.def.cpp
+	src/res/font/sb10.def.cpp
+	src/res/font/sbi10.def.cpp
+	src/res/font/si10.def.cpp
+	src/res/font/special.def.cpp
+	src/res/font/ss10.def.cpp
+	src/res/font/stmary10.def.cpp
+	src/res/font/tt10.def.cpp
+	src/res/parser/font_parser.cpp
+	src/res/parser/formula_parser.cpp
+	src/res/reg/builtin_font_reg.cpp
+	src/res/reg/builtin_syms_reg.cpp
+	src/res/sym/amsfonts.def.cpp
+	src/res/sym/amssymb.def.cpp
+	src/res/sym/base.def.cpp
+	src/res/sym/stmaryrd.def.cpp
+	src/res/sym/symspecial.def.cpp
 
-    # check if compiler has c++11/c++17 support
+	src/latex.cpp
+	src/render.cpp
+)
+add_library(MicroTeX::Core ALIAS Core)
+list(APPEND TARGETS_TO_INSTALL Core)
 
-    include(CheckCXXCompilerFlag)
-    CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-    CHECK_CXX_COMPILER_FLAG("-std=c++17" COMPILER_SUPPORTS_CXX17)
-    CHECK_CXX_COMPILER_FLAG("-std=c++20" COMPILER_SUPPORTS_CXX20)
+target_include_directories(Core PUBLIC
+	src
+)
 
-    # check gcc version
-    set(CMAKE_CXX_STANDARD 20)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+target_link_libraries(Core PUBLIC
+	tinyxml2::tinyxml2
+)
 
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        if ("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS 9)
-            # needs extra lib to use std::filesystem
-            target_link_libraries(LaTeX PUBLIC "stdc++fs")
-        endif ()
-        if ("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS 8)
-            # dose not have full c++17 features
-            set(COMPILER_SUPPORTS_CXX17 OFF)
-        endif ()
-    endif ()
+set_target_properties(Core PROPERTIES
+	CXX_STANDARD 17
+	CXX_STANDARD_REQUIRED ON
+	CXX_EXTENSIONS OFF
+)
 
-    if (COMPILER_SUPPORTS_CXX20)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
-    elseif (COMPILER_SUPPORTS_CXX17)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-    elseif (COMPILER_SUPPORTS_CXX11)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    else ()
-        message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no c++11 support. Please use a different one that supports c++11.")
-    endif ()
-endif ()
-# copy res dir
+option(HAVE_LOG "If enable log" OFF)
+if(HAVE_LOG)
+	target_compile_definitions(Core PRIVATE -DHAVE_LOG)
+endif()
 
-file(COPY res DESTINATION .)
-if (MSVC)
-    find_package(tinyxml2 CONFIG REQUIRED)
-    target_link_libraries(LaTeX PRIVATE tinyxml2::tinyxml2)
-else ()
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(tinyxml2 REQUIRED IMPORTED_TARGET tinyxml2)
-    target_link_libraries(LaTeX PRIVATE tinyxml2)
-endif ()
-
-# source files
-target_sources(LaTeX PRIVATE
-        # atom folder
-        src/atom/atom_basic.cpp
-        src/atom/atom_char.cpp
-        src/atom/atom_impl.cpp
-        src/atom/atom_matrix.cpp
-        src/atom/atom_row.cpp
-        src/atom/atom_space.cpp
-        src/atom/colors_def.cpp
-        src/atom/unit_conversion.cpp
-        # box folder
-        src/box/box.cpp
-        src/box/box_factory.cpp
-        src/box/box_group.cpp
-        src/box/box_single.cpp
-        # core folder
-        src/core/core.cpp
-        src/core/formula.cpp
-        src/core/formula_def.cpp
-        src/core/glue.cpp
-        src/core/localized_num.cpp
-        src/core/macro.cpp
-        src/core/macro_def.cpp
-        src/core/macro_impl.cpp
-        src/core/parser.cpp
-        # fonts folder
-        src/fonts/alphabet.cpp
-        src/fonts/font_basic.cpp
-        src/fonts/font_info.cpp
-        src/fonts/fonts.cpp
-        # utils folder
-        src/utils/string_utils.cpp
-        src/utils/utf.cpp
-        src/utils/utils.cpp
-        # res folder
-        src/res/builtin/formula_mappings.res.cpp
-        src/res/builtin/symbol_mapping.res.cpp
-        src/res/builtin/tex_param.res.cpp
-        src/res/builtin/tex_symbols.res.cpp
-        src/res/font/bi10.def.cpp
-        src/res/font/bx10.def.cpp
-        src/res/font/cmbsy10.def.cpp
-        src/res/font/cmbx10.def.cpp
-        src/res/font/cmbxti10.def.cpp
-        src/res/font/cmex10.def.cpp
-        src/res/font/cmmi10.def.cpp
-        src/res/font/cmmi10_unchanged.def.cpp
-        src/res/font/cmmib10.def.cpp
-        src/res/font/cmmib10_unchanged.def.cpp
-        src/res/font/cmr10.def.cpp
-        src/res/font/cmss10.def.cpp
-        src/res/font/cmssbx10.def.cpp
-        src/res/font/cmssi10.def.cpp
-        src/res/font/cmsy10.def.cpp
-        src/res/font/cmti10.def.cpp
-        src/res/font/cmti10_unchanged.def.cpp
-        src/res/font/cmtt10.def.cpp
-        src/res/font/dsrom10.def.cpp
-        src/res/font/eufb10.def.cpp
-        src/res/font/eufm10.def.cpp
-        src/res/font/i10.def.cpp
-        src/res/font/moustache.def.cpp
-        src/res/font/msam10.def.cpp
-        src/res/font/msbm10.def.cpp
-        src/res/font/r10.def.cpp
-        src/res/font/r10_unchanged.def.cpp
-        src/res/font/rsfs10.def.cpp
-        src/res/font/sb10.def.cpp
-        src/res/font/sbi10.def.cpp
-        src/res/font/si10.def.cpp
-        src/res/font/special.def.cpp
-        src/res/font/ss10.def.cpp
-        src/res/font/stmary10.def.cpp
-        src/res/font/tt10.def.cpp
-        src/res/parser/font_parser.cpp
-        src/res/parser/formula_parser.cpp
-        src/res/reg/builtin_font_reg.cpp
-        src/res/reg/builtin_syms_reg.cpp
-        src/res/sym/amsfonts.def.cpp
-        src/res/sym/amssymb.def.cpp
-        src/res/sym/base.def.cpp
-        src/res/sym/stmaryrd.def.cpp
-        src/res/sym/symspecial.def.cpp
-
-        src/latex.cpp
-        src/render.cpp
-        )
-target_include_directories(LaTeX PUBLIC src)
-
-# check operating system
-
-if (QT)
-    message(STATUS, "Cross platform build using Qt")
-    target_compile_definitions(LaTeX PUBLIC -DBUILD_QT)
-    find_package(QT NAMES Qt6 Qt5 COMPONENTS Gui Widgets REQUIRED)
-    find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Gui Widgets REQUIRED)
-    target_sources(LaTeX PRIVATE
-            src/platform/qt/graphic_qt.cpp
-            )
-    target_link_libraries(LaTeX PRIVATE
-            Qt${QT_VERSION_MAJOR}::Gui
-            )
-    add_executable(LaTeXQtSample
-            src/samples/qt_texwidget.cpp
-            src/samples/qt_mainwindow.cpp
-            src/samples/qt_main.cpp
-            )
-    target_link_libraries(LaTeXQtSample PRIVATE
-            Qt${QT_VERSION_MAJOR}::Widgets LaTeX)
-    set_target_properties(LaTeXQtSample PROPERTIES OUTPUT_NAME LaTeX)
-    set_target_properties(LaTeXQtSample PROPERTIES AUTOMOC ON)
-elseif (SKIA)
-    message(STATUS, "Cross platform build using Qt and Skia for rendering")
-    target_compile_definitions(LaTeX PUBLIC -DBUILD_SKIA -DSK_GL)
-    target_include_directories(LaTeX PUBLIC src)
-    if (MSVC)
-        find_package(skia REQUIRED)
-        target_link_libraries(LaTeX INTERFACE skia skia::skia)
-    else ()
-        include_directories(../skia ../skia/include)
-        link_directories(../skia)
-    endif ()
-    find_package(QT NAMES Qt6 Qt5 COMPONENTS Core Widgets REQUIRED)
-    find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Core Widgets REQUIRED)
-    target_sources(LaTeX PRIVATE
-            src/platform/skia/graphic_skia.cpp
-            )
-    target_link_libraries(LaTeX PRIVATE
-            Qt${QT_VERSION_MAJOR}::Core
-            )
-    add_executable(LaTeXQtSkiaSample
-            src/samples/qt_skiatexwidget.cpp
-            src/samples/qt_mainwindow.cpp
-            src/samples/qt_main.cpp
-            )
-    target_link_libraries(LaTeXQtSkiaSample PRIVATE
-            Qt${QT_VERSION_MAJOR}::Widgets LaTeX)
-    set_target_properties(LaTeXQtSkiaSample PROPERTIES OUTPUT_NAME LaTeX)
-    set_target_properties(LaTeXQtSkiaSample PROPERTIES AUTOMOC ON)
-elseif (WIN32)
-    message(STATUS "We are working on Windows")
-    target_compile_definitions(LaTeX PUBLIC -DBUILD_WIN32 -D_HAS_STD_BYTE=0)
-    add_executable(LaTeXWin32Sample WIN32
-            src/platform/gdi_win/graphic_win32.cpp
-            src/samples/win32_main.cpp
-            )
-    target_link_libraries(LaTeXWin32Sample PRIVATE gdiplus LaTeX)
-    set_target_properties(LaTeXWin32Sample PROPERTIES OUTPUT_NAME LaTeX)
-elseif (UNIX)
-    message(STATUS "We are working with GTK on a Unix like OS")
-    target_compile_definitions(LaTeX PUBLIC -DBUILD_GTK)
-    find_package(Fontconfig REQUIRED)
-    pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-3.0)
-    pkg_check_modules(GSVMM REQUIRED IMPORTED_TARGET gtksourceviewmm-3.0)
-    pkg_check_modules(CairoMM REQUIRED IMPORTED_TARGET cairomm-1.0)
-    target_sources(LaTeX PRIVATE
-            src/platform/cairo/graphic_cairo.cpp
-            )
-    target_link_libraries(LaTeX PRIVATE
-            PkgConfig::GTKMM #include <pangomm/fontdescription.h>
-            PkgConfig::CairoMM #include <cairomm/context.h>
-            Fontconfig::Fontconfig
-            )
-    add_executable(LaTeXGtkSample
-            src/samples/gtkmm_main.cpp
-            )
-    target_link_libraries(LaTeXGtkSample PRIVATE
-            PkgConfig::GSVMM
-            LaTeX
-            )
-    set_target_properties(LaTeXGtkSample PROPERTIES OUTPUT_NAME LaTeX)
-else ()
-    message(STATUS "We are working on a unknown platform")
-    # other platforms...
-endif ()
-
-# compile options
-
-option(HAVE_LOG "If enable log" ON)
-if (HAVE_LOG)
-    add_definitions(-DHAVE_LOG)
-endif ()
-
-option(GRAPHICS_DEBUG "If enable graphics debug" ON)
-if (GRAPHICS_DEBUG)
-    add_definitions(-DGRAPHICS_DEBUG)
-endif ()
+option(GRAPHICS_DEBUG "If enable graphics debug" OFF)
+if(GRAPHICS_DEBUG)
+	target_compile_definitions(Core PRIVATE -DGRAPHICS_DEBUG)
+endif()
 
 option(MEM_CHECK "If compile for memory check only" OFF)
 if (MEM_CHECK)
-    add_definitions(-DMEM_CHECK)
-endif ()
+	target_compile_definitions(Core PRIVATE -DMEM_CHECK)
+endif()
 
-option(QT "Compile using Qt instead of Win32/Gtk" OFF)
+# TODO optional gtk dependencies?
 
+# TODO install
 
-option(BUILD_EXAMPLE "Build examples" OFF)
-if (BUILD_EXAMPLE)
-    add_subdirectory(example)
-endif ()
+option(BUILD_GTK_CAIRO_INTEGRATION "Build GTK/Cairo integration" ON)
+option(BUILD_GTK_EXAMPLE "Build GTK example, only affective if GTK/Cairo integration is enabled" ON)
+if(BUILD_GTK_CAIRO_INTEGRATION)
+	find_package(Fontconfig REQUIRED)
+	find_package(PkgConfig REQUIRED)
+	pkg_check_modules(CairoMM REQUIRED IMPORTED_TARGET cairomm-1.0)
+	pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-3.0)
+
+	add_library(CairoIntegration
+		src/platform/cairo/graphic_cairo.cpp
+	)
+	add_library(MicroTeX::CairoIntegration ALIAS CairoIntegration)
+	list(APPEND TARGETS_TO_INSTALL CairoIntegration)
+	target_link_libraries(CairoIntegration PUBLIC
+		Core
+		Fontconfig::Fontconfig
+		PkgConfig::CairoMM
+		PkgConfig::GTKMM
+	)
+	target_compile_definitions(CairoIntegration PRIVATE -DBUILD_GTK=1)
+
+	if(BUILD_GTK_EXAMPLE)
+		pkg_check_modules(GSVMM REQUIRED IMPORTED_TARGET gtksourceviewmm-3.0)
+		add_executable(MicroTeXGTKExample
+			src/samples/gtkmm_main.cpp
+		)
+		target_link_libraries(MicroTeXGTKExample PRIVATE
+			CairoIntegration
+			PkgConfig::GSVMM
+		)
+		target_compile_definitions(MicroTeXGTKExample PRIVATE -DBUILD_GTK=1)
+	endif()
+endif()
+
+option(BUILD_QT_INTEGRATION "Build Qt integration" ON)
+option(BUILD_QT_EXAMPLE "Build Qt example, only affective if Qt integration is enabled" ON)
+if(BUILD_QT_INTEGRATION)
+	set(NEEDED_QT_COMPONENTS Gui)
+	if(BUILD_QT_EXAMPLE)
+		list(APPEND NEEDED_QT_COMPONENTS Widgets)
+	endif()
+
+	find_package(QT NAMES Qt6 Qt5 COMPONENTS ${NEEDED_QT_COMPONENTS} REQUIRED)
+	find_package(Qt${QT_VERSION_MAJOR} COMPONENTS ${NEEDED_QT_COMPONENTS} REQUIRED)
+
+	add_library(QtIntegration
+		src/platform/qt/graphic_qt.cpp
+	)
+	add_library(MicroTeX::QtIntegration ALIAS QtIntegration)
+	list(APPEND TARGETS_TO_INSTALL QtIntegration)
+	target_link_libraries(QtIntegration PUBLIC
+		Core
+		Qt${QT_VERSION_MAJOR}::Gui
+	)
+	target_compile_definitions(QtIntegration PRIVATE -DBUILD_QT=1)
+
+	if(BUILD_QT_EXAMPLE)
+		# TODO there is a qml widget provided in source, build that too?
+		add_executable(MicroTeXQtExample
+			src/samples/qt_texwidget.cpp
+			src/samples/qt_mainwindow.cpp
+			src/samples/qt_main.cpp
+		)
+		target_link_libraries(MicroTeXQtExample PRIVATE
+			QtIntegration
+			Qt${QT_VERSION_MAJOR}::Widgets
+		)
+		target_compile_definitions(MicroTeXQtExample PRIVATE -DBUILD_QT=1)
+		set_target_properties(MicroTeXQtExample PROPERTIES
+			AUTOMOC ON
+		)
+	endif()
+endif()
+
+# TODO Skia integration
+# the project's code is currently coupled to QString, so it's actually not that useful at all
+
+if(WIN32)
+	option(BUILD_GDI_INTEGRATION "Build GDI integration" ON)
+	option(BUILD_WIN32_EXAMPLE "Build win32 example, only affective if and GDI integration is enabled")
+	# TODO
+endif()
+
+add_library(MicroTeX INTERFACE)
+add_library(MicroTeX::MicroTeX ALIAS MicroTeX)
+target_link_libraries(MicroTeX INTERFACE ${TARGETS_TO_INSTALL})
+list(APPEND TARGETS_TO_INSTALL MicroTeX)
+
+# TODO install
 
